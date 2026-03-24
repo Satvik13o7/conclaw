@@ -74,6 +74,16 @@ conclaw/
   `fs_ops.py`, `memory.py`, `safety.py`).
 - Created `track.md` (this file).
 
+### 2026-03-25 -- Harsh (Auto-discover DB + agent tools)
+
+- Added `discover_and_connect()` in `backend/db.py`: auto-scans localhost
+  ports 5432/5433, creates `conclaw` database if missing, initialises schema.
+- Added `/db connect` slash command so users can connect with one command.
+- Created `backend/tools.py`: defines OpenAI-compatible tool schemas
+  (`db_connect`, `memory_set`, `memory_get`, `memory_list`, `memory_delete`,
+  `log_decision`) and `ToolExecutor` class so the orchestrator agent can
+  call these as function-calling tools.
+
 ---
 
 ## What Is Done (Implementation Status)
@@ -92,6 +102,8 @@ conclaw/
 | Safety layer (full_access / prompt modes) | Done | Harsh |
 | Slash commands for backend (/db, /memory, /decisions) | Done | Harsh |
 | Backend integrated into unified config | Done | Harsh |
+| Auto-discover localhost PostgreSQL (/db connect) | Done | Harsh |
+| Agent-callable tools (ToolExecutor + TOOL_DEFINITIONS) | Done | Harsh |
 
 ---
 

@@ -23,7 +23,7 @@ def register_builtins(registry: CommandRegistry) -> None:
     registry.register("sessions", "List recent sessions", cmd_sessions)
     registry.register("config", "Show current configuration", cmd_config)
     registry.register("cost", "Show token usage and cost", cmd_cost)
-    registry.register("db", "Database ops: /db up | /db init", cmd_db)
+    registry.register("db", "Database ops: /db connect | /db up | /db init", cmd_db)
     registry.register("memory", "Memory ops: /memory set|get|list|delete", cmd_memory)
     registry.register("decisions", "Show recent decision log entries", cmd_decisions)
 
@@ -180,13 +180,28 @@ def _backend_dsn(ctx: AppContext) -> str:
 
 def cmd_db(ctx: AppContext, args: list[str]) -> None:
     if not args:
-        ctx.console.print(" Usage: /db up | /db init", style="warning")
+        ctx.console.print(
+            " Usage: /db connect  -- auto-discover localhost PostgreSQL\n"
+            "        /db up       -- start Docker PostgreSQL container\n"
+            "        /db init     -- create schema on current DSN",
+            style="warning",
+        )
         return
 
     sub = args[0]
-    dsn = _backend_dsn(ctx)
 
-    if sub == "up":
+    if sub == "connect":
+        try:
+            from conclaw.backend.db import discover_and_connect
+            dsn = discover_and_connect()
+            ctx.config.setdefault("backend", {})["dsn"] = dsn
+            ctx.console.print(
+                f" Connected to localhost PostgreSQL. DSN: [info.value]{dsn}[/info.value]",
+                style="success",
+            )
+        except Exception as e:
+            ctx.console.print(f" [error]Auto-connect failed: {e}[/error]")
+    elif sub == "up":
         try:
             from conclaw.backend.db import docker_up
             docker_up()
@@ -194,6 +209,7 @@ def cmd_db(ctx: AppContext, args: list[str]) -> None:
         except Exception as e:
             ctx.console.print(f" [error]Docker up failed: {e}[/error]")
     elif sub == "init":
+        dsn = _backend_dsn(ctx)
         try:
             from conclaw.backend.db import init_db
             init_db(dsn)
@@ -201,7 +217,7 @@ def cmd_db(ctx: AppContext, args: list[str]) -> None:
         except Exception as e:
             ctx.console.print(f" [error]DB init failed: {e}[/error]")
     else:
-        ctx.console.print(f" Unknown sub-command: {sub}. Use /db up or /db init.", style="warning")
+        ctx.console.print(f" Unknown sub-command: {sub}. Use /db connect, /db up, or /db init.", style="warning")
     ctx.console.print()
 
 
