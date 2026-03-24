@@ -1,0 +1,16 @@
+services:
+  conclaw-postgres:
+    image: postgres:16
+    container_name: conclaw-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: conclaw
+      POSTGRES_USER: conclaw
+      POSTGRES_PASSWORD: conclaw
+    ports:
+      - "5433:5432"
+    volumes:
+      - conclaw_pg_data:/var/lib/postgresql/data
+
+volumes:
+  conclaw_pg_data:
