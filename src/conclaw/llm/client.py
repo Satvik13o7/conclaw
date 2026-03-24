@@ -167,5 +167,19 @@ class LLMClient:
                     self._messages.pop()
                     raise
 
+    def inject_context(self, instructions: str) -> None:
+        """Inject CONCLAW.md + rules + auto-memory as a context message."""
+        self._messages.append({
+            "role": "user",
+            "content": (
+                "The following project instructions and memory were loaded automatically. "
+                "Follow them throughout this session:\n\n" + instructions
+            ),
+        })
+        self._messages.append({
+            "role": "assistant",
+            "content": "Understood. I've loaded the project instructions and memory.",
+        })
+
     def reset(self) -> None:
         self._messages = [{"role": "system", "content": SYSTEM_PROMPT}]

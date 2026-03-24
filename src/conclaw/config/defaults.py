@@ -30,9 +30,7 @@ DEFAULT_CONFIG = {
         "key_source": "local",
         "telemetry": False,
     },
-    "backend": {
-        "db_mode": "system_or_docker",
-        "dsn": "postgresql://conclaw:conclaw@localhost:5433/conclaw",
-        "filesystem_permission": "full_access",
+    "memory": {
+        "auto_memory_enabled": True,
     },
 }

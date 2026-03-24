@@ -141,6 +141,15 @@ def main() -> None:
     register_builtins(registry)
     llm = _init_llm(config, console)
 
+    # Load CONCLAW.md + rules + auto-memory into LLM context
+    from conclaw.storage.context_loader import load_all_instructions
+    from conclaw.storage.auto_memory import ensure_entrypoint, is_enabled as mem_enabled
+    instructions = load_all_instructions()
+    if instructions and llm is not None:
+        llm.inject_context(instructions)
+    if mem_enabled(config):
+        ensure_entrypoint()
+
     ctx = AppContext(
         console=console,
         config=config,

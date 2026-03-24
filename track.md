@@ -10,7 +10,7 @@
 | Name | GitHub | Role |
 |------|--------|------|
 | Satvik | @Satvik13o7 | Frontend TUI, LLM client, session system, CLI framework |
-| Harsh Azad | btech10440.21@bitmesra.ac.in | Backend (PostgreSQL persistence, memory, decisions, safety, fs), packaging |
+| Harsh Azad | btech10440.21@bitmesra.ac.in | Memory system (flat-file), context loader, CONCLAW.md, packaging |
 
 ---
 
@@ -24,9 +24,12 @@ conclaw/
     config/         # Config loader, defaults                 (Satvik + Harsh)
     llm/            # Azure OpenAI client, prompts            (Satvik)
     session/        # Session manager, metadata               (Satvik)
-    storage/        # Conversation JSONL, paths               (Satvik)
-    backend/        # PostgreSQL memory, decision log, safety (Harsh)
-  docker-compose.yml  # One-command local Postgres bootstrap  (Harsh)
+    storage/        # Conversation JSONL, paths, memory tool  (Satvik + Harsh)
+      context_loader.py  # CONCLAW.md + rules + auto-memory loader
+      memory_tool.py     # Claude-style memory tool (view/create/edit/delete/rename)
+      auto_memory.py     # Auto-memory writer (MEMORY.md + topic files)
+      paths.py           # All path resolution (global, project, memory)
+      conversation.py    # Append-only JSONL conversation log
   pyproject.toml      # Package metadata and deps             (Both)
   PRD.md              # Full product requirements             (Satvik)
   environment_CLI_level.md  # Backend-specific PRD            (Harsh)
@@ -74,15 +77,28 @@ conclaw/
   `fs_ops.py`, `memory.py`, `safety.py`).
 - Created `track.md` (this file).
 
-### 2026-03-25 -- Harsh (Auto-discover DB + agent tools)
+### 2026-03-25 -- Harsh (Switch to Claude-style flat-file memory)
 
-- Added `discover_and_connect()` in `backend/db.py`: auto-scans localhost
-  ports 5432/5433, creates `conclaw` database if missing, initialises schema.
-- Added `/db connect` slash command so users can connect with one command.
-- Created `backend/tools.py`: defines OpenAI-compatible tool schemas
-  (`db_connect`, `memory_set`, `memory_get`, `memory_list`, `memory_delete`,
-  `log_decision`) and `ToolExecutor` class so the orchestrator agent can
-  call these as function-calling tools.
+- **Removed entire PostgreSQL backend** (`backend/` package, `docker-compose.yml`,
+  `psycopg` dependency). No database needed anymore.
+- **New storage/context_loader.py**: walks directory tree to load CONCLAW.md files
+  (project + user + ancestor), `.conclaw/rules/*.md`, and auto-memory MEMORY.md
+  (first 200 lines). Supports `@path` imports (max depth 5).
+- **New storage/memory_tool.py**: client-side memory tool matching Claude's spec.
+  Commands: `view`, `create`, `str_replace`, `insert`, `delete`, `rename`.
+  All ops restricted to `~/.conclaw/projects/<project>/memory/` with path
+  traversal protection. Includes OpenAI function-calling tool definition.
+- **New storage/auto_memory.py**: auto-memory writer. Conclaw saves notes for
+  itself as plain `.md` files. MEMORY.md entrypoint + topic files.
+- **Updated storage/paths.py**: added `auto_memory_dir()`, `memory_entrypoint()`,
+  `project_rules_dir()`, `user_rules_dir()`, `_project_key()` (git-root hash).
+- **Updated commands/builtins.py**: replaced `/db`, `/memory` (PG), `/decisions`
+  with new `/memory` (lists loaded files, shows auto-memory status/path) and
+  `/init` (generates starter CONCLAW.md).
+- **Updated cli/app.py**: injects loaded instructions into LLM context at startup.
+- **Updated llm/client.py**: added `inject_context()` method.
+- **Updated config/defaults.py**: replaced `backend` section with `memory`
+  (`auto_memory_enabled: true`).
 
 ---
 
@@ -100,10 +116,12 @@ conclaw/
 | Persistent memory CRUD (backend) | Done | Harsh |
 | Decision logging (backend) | Done | Harsh |
 | Safety layer (full_access / prompt modes) | Done | Harsh |
-| Slash commands for backend (/db, /memory, /decisions) | Done | Harsh |
-| Backend integrated into unified config | Done | Harsh |
-| Auto-discover localhost PostgreSQL (/db connect) | Done | Harsh |
-| Agent-callable tools (ToolExecutor + TOOL_DEFINITIONS) | Done | Harsh |
+| CONCLAW.md loader (ancestor walk + @imports + rules) | Done | Harsh |
+| Auto-memory system (MEMORY.md + topic files) | Done | Harsh |
+| Memory tool (view/create/str_replace/insert/delete/rename) | Done | Harsh |
+| /memory slash command (list files, status, dir path) | Done | Harsh |
+| /init slash command (generate starter CONCLAW.md) | Done | Harsh |
+| Context injection into LLM at session start | Done | Harsh |
 
 ---
 
@@ -142,19 +160,23 @@ conclaw/
 ```bash
 git clone https://github.com/Satvik13o7/conclaw.git
 cd conclaw
-pip install -e ".[dev]"
+pip install -e .
 
 # Set your API key
 set AZURE_OPENAI_KEY=your_key_here    # Windows
 export AZURE_OPENAI_KEY=your_key_here # Linux/macOS
 
-# Launch
+# Create project instructions (optional)
 conclaw
+/init           # generates CONCLAW.md in cwd
 
 # Inside the TUI:
-/db up          # start Docker Postgres
-/db init        # create tables
-/memory set global project_name conclaw
-/memory list global
-/decisions
+/memory         # see loaded CONCLAW.md files, rules, auto-memory
+/help           # all slash commands
+
+# Memory persists as flat markdown files:
+# ~/.conclaw/projects/<project>/memory/MEMORY.md   (auto-memory entrypoint)
+# ./CONCLAW.md                                      (project instructions)
+# ~/.conclaw/CONCLAW.md                             (user instructions)
+# .conclaw/rules/*.md                               (project rules)
 ```
