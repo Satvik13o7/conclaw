@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import subprocess
 from contextlib import contextmanager
-
-from conclaw.config import AppConfig
+from pathlib import Path
 
 try:
     import psycopg
-except ImportError as exc:  # pragma: no cover
-    raise RuntimeError("psycopg is required. Install with: pip install 'psycopg[binary]'") from exc
+except ImportError:
+    psycopg = None
 
 
 SCHEMA_SQL = """
@@ -31,14 +31,29 @@ CREATE TABLE IF NOT EXISTS decision_log (
 """
 
 
+def _require_psycopg() -> None:
+    if psycopg is None:
+        raise RuntimeError("psycopg is required. Install with: pip install 'psycopg[binary]'")
+
+
 @contextmanager
-def get_connection(config: AppConfig):
-    with psycopg.connect(config.dsn) as conn:
+def get_connection(dsn: str):
+    _require_psycopg()
+    with psycopg.connect(dsn) as conn:
         yield conn
 
 
-def init_db(config: AppConfig) -> None:
-    with get_connection(config) as conn:
+def init_db(dsn: str) -> None:
+    with get_connection(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(SCHEMA_SQL)
             conn.commit()
+
+
+def docker_up(compose_path: Path | None = None) -> None:
+    if compose_path is None:
+        compose_path = Path(__file__).resolve().parents[3] / "docker-compose.yml"
+    subprocess.run(
+        ["docker", "compose", "-f", str(compose_path), "up", "-d"],
+        check=True,
+    )

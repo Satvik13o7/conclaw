@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from conclaw.safety import SafetyLayer
+from conclaw.backend.safety import SafetyLayer
 
 
 def read_file(path: str, safety: SafetyLayer) -> str:
